@@ -22,12 +22,17 @@ Instagram DM/Comment
   │ Extract text │
   └──────┬───────┘
          ↓
-  ┌──────────────────┐
-  │ RAG Pipeline     │
-  │ 1. Embed query   │ → NVIDIA NIM embeddings
-  │ 2. Vector search │ → Supabase pgvector
-  │ 3. Generate reply│ → NVIDIA NIM LLM
-  └──────┬───────────┘
+  ┌─────────────────────────┐
+  │ 1. Content Safety Check │ → nemotron-3.5-content-safety
+  │    (block unsafe input) │
+  ├─────────────────────────┤
+  │ 2. RAG Pipeline         │
+  │    a. Embed query       │ → nemotron-3-embed-1b (2048-d)
+  │    b. Vector search     │ → Supabase pgvector (≥0.5 threshold)
+  │    c. Context check     │ → fallback if no relevant chunks
+  ├─────────────────────────┤
+  │ 3. Generate reply       │ → nemotron-3.5-lightning-30b-a3b
+  └──────┬──────────────────┘
          ↓
   Send reply via Graph API
 ```
@@ -47,14 +52,15 @@ Instagram DM/Comment
 
 1. Go to **[build.nvidia.com](https://build.nvidia.com)** and create an account.
 2. Generate an **API Key** — this is your `NVIDIA_API_KEY`.
-3. **Pick an embedding model**: Browse the Embedding section at build.nvidia.com.
-   - Default: `nvidia/nv-embedqa-e5-v5` (1024 dimensions)
-   - Set `NVIDIA_EMBED_MODEL` in your `.env.local`
-   - ⚠️ **Check the model's output dimension** and update the `vector(1024)` size
-     in `supabase/schema.sql` to match before running the SQL.
-4. **Pick an LLM model**: Browse the Chat section at build.nvidia.com.
-   - Default: `meta/llama3-70b-instruct`
-   - Set `NVIDIA_LLM_MODEL` in your `.env.local`
+3. This project uses **three specific NVIDIA NIM models** (all pre-configured in `.env.local.example`):
+
+| Purpose | Model | Notes |
+|---|---|---|
+| **Embeddings** | `nvidia/nemotron-3-embed-1b` | 2048-d output (native only, no dimension reduction) |
+| **Reply Generation** | `nemotron-3.5-lightning-30b-a3b` | Fast, high-quality LLM for conversational replies |
+| **Content Safety** | `nemotron-3.5-content-safety` | Pre-screens incoming messages for abuse/spam |
+
+> The `supabase/schema.sql` is already set to `vector(2048)` matching nemotron-3-embed-1b.
 
 ---
 
@@ -115,8 +121,8 @@ Instagram DM/Comment
 4. Open the **SQL Editor** in Supabase Dashboard.
 5. Paste and run the contents of [`supabase/schema.sql`](supabase/schema.sql).
 
-> ⚠️ Before running the SQL, check that the `vector(1024)` dimension matches
-> your chosen NVIDIA embedding model's output dimension.
+> The schema uses `vector(2048)` matching nemotron-3-embed-1b. If you previously
+> ran the schema with a different dimension, see the migration note in the SQL file.
 
 ---
 
@@ -215,6 +221,21 @@ ig-rag-bot/
 
 ---
 
+## Accuracy & Safety
+
+No LLM guarantees zero errors. This project reduces mistakes through multiple layers:
+
+1. **Strict RAG grounding** — the LLM is instructed to only use information present in the retrieved context, never fabricate facts.
+2. **Similarity threshold filtering** — chunks with cosine similarity below 0.5 are discarded before reaching the LLM, so weak/irrelevant context doesn't cause hallucinated replies.
+3. **Content safety pre-check** — every incoming message is screened by `nemotron-3.5-content-safety` before the LLM sees it. Unsafe messages get a polite deflection instead of a generated reply.
+4. **Safe fallback replies** — when no relevant context is found, the bot returns a helpful fallback message instead of guessing.
+
+> **Recommendation**: Manually review the first 1–2 weeks of auto-replies before
+> fully trusting the bot unattended. Monitor your Instagram inbox and comments
+> regularly to catch any edge cases.
+
+---
+
 ## Environment Variables Reference
 
 | Variable | Description |
@@ -222,8 +243,9 @@ ig-rag-bot/
 | `SUPABASE_URL` | Your Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-side only) |
 | `NVIDIA_API_KEY` | NVIDIA NIM API key from build.nvidia.com |
-| `NVIDIA_EMBED_MODEL` | NVIDIA embedding model name (e.g. `nvidia/nv-embedqa-e5-v5`) |
-| `NVIDIA_LLM_MODEL` | NVIDIA LLM model name (e.g. `meta/llama3-70b-instruct`) |
+| `NVIDIA_EMBED_MODEL` | Embedding model (`nvidia/nemotron-3-embed-1b`) |
+| `NVIDIA_LLM_MODEL` | Reply generation LLM (`nemotron-3.5-lightning-30b-a3b`) |
+| `NVIDIA_SAFETY_MODEL` | Content safety model (`nemotron-3.5-content-safety`) |
 | `IG_PAGE_ACCESS_TOKEN` | Instagram/Facebook Page long-lived access token |
 | `IG_VERIFY_TOKEN` | Custom string for Meta webhook verification |
 | `IG_APP_SECRET` | Meta App Secret for webhook signature verification |

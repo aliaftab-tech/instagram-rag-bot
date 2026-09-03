@@ -6,12 +6,14 @@ import { nvidia } from "./nvidia";
  * @param text      - The text to embed.
  * @param inputType - "query" for search queries, "passage" for documents being stored.
  *
+ * Model: nvidia/nemotron-3-embed-1b (2048-dimensional output).
+ * This model only supports its native 2048 dimension — do NOT pass a `dimensions`
+ * parameter, as reduced dimensions are not supported.
+ *
  * NIM-specific notes:
- * - Many NVIDIA embedding models (e.g. nv-embedqa-e5-v5) require `input_type`
- *   and `truncate` parameters that aren't part of the standard OpenAI SDK.
- *   We pass them via the undocumented `extra_body` option.
- * - Always check your specific model's docs at https://build.nvidia.com for
- *   the exact required/optional extra parameters.
+ * - `input_type` and `truncate` are passed via the SDK's `extra_body` option
+ *   since they aren't part of the standard OpenAI embeddings API.
+ * - `truncate: "END"` safely handles inputs exceeding the model's token limit.
  */
 export async function embedText(
   text: string,
@@ -20,6 +22,7 @@ export async function embedText(
   const response = await nvidia.embeddings.create({
     model: process.env.NVIDIA_EMBED_MODEL!,
     input: text,
+    // Do NOT pass `dimensions` — nemotron-3-embed-1b only supports native 2048-d output.
     // @ts-expect-error — extra_body is supported at runtime by the OpenAI SDK
     // but not in the type definitions.  These are NIM-specific params.
     extra_body: {

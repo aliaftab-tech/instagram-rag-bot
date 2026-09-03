@@ -186,6 +186,8 @@ export async function POST(request: NextRequest) {
 
 async function handleDM(senderId: string, userMessage: string): Promise<void> {
   try {
+    // retrieveContext returns RetrievedChunk[] (already filtered by similarity threshold)
+    // generateReply accepts RetrievedChunk[] directly
     const context = await retrieveContext(userMessage);
     const reply = await generateReply(userMessage, context, "dm");
     await sendDirectMessage(senderId, reply);
@@ -209,3 +211,4 @@ async function handleComment(
     );
   }
 }
+
