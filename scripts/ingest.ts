@@ -40,7 +40,18 @@ const FAQ_ENTRIES = [
   },
 ];
 
-// ── Main ─────────────────────────────────────────────────────────────────────
+import fs from "fs";
+
+// Automatically load .env.local or .env when executed directly
+for (const envFile of [".env.local", ".env"]) {
+  if (fs.existsSync(envFile) && typeof (process as any).loadEnvFile === "function") {
+    try {
+      (process as any).loadEnvFile(envFile);
+    } catch {
+      // ignore
+    }
+  }
+}
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 const INGEST_SECRET = process.env.INGEST_SECRET;

@@ -19,17 +19,21 @@ export async function embedText(
   text: string,
   inputType: "query" | "passage"
 ): Promise<number[]> {
-  const response = await nvidia.embeddings.create({
-    model: process.env.NVIDIA_EMBED_MODEL!,
-    input: text,
-    // Do NOT pass `dimensions` — nemotron-3-embed-1b only supports native 2048-d output.
-    // @ts-expect-error — extra_body is supported at runtime by the OpenAI SDK
-    // but not in the type definitions.  These are NIM-specific params.
-    extra_body: {
-      input_type: inputType,
-      truncate: "END", // Truncate from the end if input exceeds model's max tokens
+  const response = await nvidia.embeddings.create(
+    {
+      model: process.env.NVIDIA_EMBED_MODEL!,
+      input: text,
+      // Do NOT pass `dimensions` — nemotron-3-embed-1b only supports native 2048-d output.
     },
-  });
+    {
+      // Pass extra_body in the options parameter (second argument) so that NIM-specific
+      // fields (input_type, truncate) are passed at the root of the HTTP payload.
+      extra_body: {
+        input_type: inputType,
+        truncate: "END", // Truncate from the end if input exceeds model's max tokens
+      },
+    } as any
+  );
 
   return response.data[0].embedding;
 }
