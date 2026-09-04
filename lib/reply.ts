@@ -17,7 +17,7 @@ interface SafetyResult {
 export async function checkContentSafety(text: string): Promise<SafetyResult> {
   try {
     const response = await nvidia.chat.completions.create({
-      model: process.env.NVIDIA_SAFETY_MODEL!,
+      model: (process.env.NVIDIA_SAFETY_MODEL || "nvidia/nemotron-3.5-content-safety").trim(),
       messages: [
         {
           role: "user",
@@ -134,7 +134,7 @@ CONTEXT FROM KNOWLEDGE BASE:
 ${contextBlock}`;
 
   const response = await nvidia.chat.completions.create({
-    model: process.env.NVIDIA_LLM_MODEL!,
+    model: (process.env.NVIDIA_LLM_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b").trim(),
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userMessage },

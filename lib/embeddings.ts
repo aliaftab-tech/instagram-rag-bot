@@ -21,7 +21,7 @@ export async function embedText(
 ): Promise<number[]> {
   const response = await nvidia.embeddings.create(
     {
-      model: process.env.NVIDIA_EMBED_MODEL!,
+      model: (process.env.NVIDIA_EMBED_MODEL || "nvidia/nemotron-3-embed-1b").trim(),
       input: text,
       // Do NOT pass `dimensions` — nemotron-3-embed-1b only supports native 2048-d output.
     },
