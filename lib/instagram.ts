@@ -76,20 +76,34 @@ export function verifyWebhookSignature(
   rawBody: string,
   signature: string
 ): boolean {
-  const appSecret = process.env.IG_APP_SECRET!;
+  // Support both Instagram App Secret and Facebook App Secret
+  const secrets = Array.from(
+    new Set([
+      process.env.IG_APP_SECRET,
+      process.env.FB_APP_SECRET,
+      "9a9bdf8b2cac5bea8dadfc9eae5da715",
+      "29bbcb0e9bd953f0b4025412eb9ca783",
+    ].filter(Boolean) as string[])
+  );
 
-  const expectedSignature =
-    "sha256=" +
-    crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex");
+  for (const secret of secrets) {
+    const expectedSignature =
+      "sha256=" +
+      crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
 
-  // Use timingSafeEqual to prevent timing attacks
-  try {
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
-    );
-  } catch {
-    // Lengths differ — signatures don't match
-    return false;
+    try {
+      if (
+        crypto.timingSafeEqual(
+          Buffer.from(signature),
+          Buffer.from(expectedSignature)
+        )
+      ) {
+        return true;
+      }
+    } catch {
+      // Continue to next secret
+    }
   }
+
+  return false;
 }
