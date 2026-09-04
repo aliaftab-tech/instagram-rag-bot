@@ -119,7 +119,8 @@ export async function POST(request: NextRequest) {
   }
 
   console.log(
-    `[Webhook] Received ${payload.entry.length} entry(ies) from Instagram`
+    `[Webhook] Received ${payload.entry.length} entry(ies) from Instagram:`,
+    JSON.stringify(payload)
   );
 
   // 3. Process each entry (usually just one, but the spec allows batching)
@@ -191,11 +192,17 @@ export async function POST(request: NextRequest) {
 
 async function handleDM(senderId: string, userMessage: string): Promise<void> {
   try {
-    // retrieveContext returns RetrievedChunk[] (already filtered by similarity threshold)
-    // generateReply accepts RetrievedChunk[] directly
+    console.log(`[Webhook] Processing DM from ${senderId}...`);
     const context = await retrieveContext(userMessage);
+    console.log(
+      `[Webhook] Context retrieved (${context.length} chunks), generating reply...`
+    );
     const reply = await generateReply(userMessage, context, "dm");
+    console.log(
+      `[Webhook] Reply generated (${reply.length} chars), sending to Instagram...`
+    );
     await sendDirectMessage(senderId, reply);
+    console.log(`[Webhook] Successfully replied to DM from ${senderId}`);
   } catch (error) {
     console.error(`[Webhook] Error handling DM from ${senderId}:`, error);
   }
