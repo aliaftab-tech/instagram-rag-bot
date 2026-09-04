@@ -12,18 +12,32 @@ export async function sendDirectMessage(
   recipientId: string,
   text: string
 ): Promise<void> {
-  const url = `${GRAPH_API_BASE}/me/messages`;
   const accessToken = process.env.IG_PAGE_ACCESS_TOKEN!;
+  const isInstagramApi = accessToken.startsWith("IG");
+  const base = isInstagramApi
+    ? "https://graph.instagram.com/v20.0"
+    : "https://graph.facebook.com/v20.0";
+  const url = `${base}/me/messages`;
+
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (isInstagramApi) {
+    headers["Authorization"] = `Bearer ${accessToken}`;
+  }
+
+  const payload: Record<string, any> = {
+    recipient: { id: recipientId },
+    message: { text },
+  };
+
+  if (!isInstagramApi) {
+    payload.messaging_type = "RESPONSE";
+    payload.access_token = accessToken;
+  }
 
   const response = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      recipient: { id: recipientId },
-      message: { text },
-      messaging_type: "RESPONSE",
-      access_token: accessToken,
-    }),
+    headers,
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
@@ -45,16 +59,30 @@ export async function replyToComment(
   commentId: string,
   text: string
 ): Promise<void> {
-  const url = `${GRAPH_API_BASE}/${commentId}/replies`;
   const accessToken = process.env.IG_PAGE_ACCESS_TOKEN!;
+  const isInstagramApi = accessToken.startsWith("IG");
+  const base = isInstagramApi
+    ? "https://graph.instagram.com/v20.0"
+    : "https://graph.facebook.com/v20.0";
+  const url = `${base}/${commentId}/replies`;
+
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (isInstagramApi) {
+    headers["Authorization"] = `Bearer ${accessToken}`;
+  }
+
+  const payload: Record<string, any> = {
+    message: text,
+  };
+
+  if (!isInstagramApi) {
+    payload.access_token = accessToken;
+  }
 
   const response = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      message: text,
-      access_token: accessToken,
-    }),
+    headers,
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
