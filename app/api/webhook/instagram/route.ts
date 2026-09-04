@@ -132,16 +132,21 @@ export async function POST(request: NextRequest) {
     // ── Handle DMs ──
     if (entry.messaging) {
       for (const event of entry.messaging) {
+        // Skip delivery or read receipts
+        if (!event.message) {
+          continue;
+        }
+
         // Skip echo messages (sent by the page/bot itself)
-        if (event.message?.is_echo) {
+        if (event.message.is_echo) {
           console.log("[Webhook] Skipping echo message");
           continue;
         }
 
         // Only handle text messages (ignore stickers, attachments, etc.)
-        const text = event.message?.text;
+        const text = event.message.text;
         if (!text) {
-          console.log("[Webhook] Skipping non-text message event");
+          console.log("[Webhook] Skipping attachment/sticker/media");
           continue;
         }
 
